@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AuthModule } from './auth/auth.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -17,6 +18,11 @@ import { AppService } from './app.service';
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    CacheModule.registerAsync({
+      useFactory: () => ({
+        ttl: 180_000,
+      }),
+    }),
     PrismaModule,
     StorageModule,
     AuthModule,

@@ -458,5 +458,31 @@ export class UsersService {
       items,
     };
   }
+
+  async getUsernames(): Promise<{ data: string[] }> {
+    const users = await this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { username: true },
+      orderBy: { username: 'asc' },
+    });
+    return { data: users.map((u) => u.username) };
+  }
+
+  async searchUsernames(query: string): Promise<{ data: string[] }> {
+    const q = query.trim();
+    if (q.length < 3) {
+      return { data: [] };
+    }
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        username: { contains: q, mode: 'insensitive' },
+      },
+      select: { username: true },
+      orderBy: { username: 'asc' },
+      take: 20,
+    });
+    return { data: users.map((u) => u.username) };
+  }
 }
 

@@ -13,6 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 import { type Express, Request } from 'express';
 import {
   ApiBearerAuth,
@@ -48,6 +49,27 @@ type AuthRequest = Request & {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @ApiOperation({ summary: 'Get all usernames (for @mentions autocomplete)' })
+  @ApiBearerAuth()
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiOkResponse({ description: 'Object with data array of usernames' })
+  @UseGuards(JwtAuthGuard)
+  @Get('usernames')
+  getUsernames() {
+    return this.usersService.getUsernames();
+  }
+
+  @ApiOperation({ summary: 'Search users by username (min 3 chars, for @mentions)' })
+  @ApiBearerAuth()
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid bearer token' })
+  @ApiOkResponse({ description: 'Object with data array of matching usernames' })
+  @ApiQuery({ name: 'q', required: true, type: String, description: 'Min 3 characters' })
+  @UseGuards(JwtAuthGuard)
+  @Get('usernames/search')
+  searchUsernames(@Query('q') q: string) {
+    return this.usersService.searchUsernames(q);
+  }
 
   @ApiOperation({ summary: 'Get my profile (private)' })
   @ApiBearerAuth()
