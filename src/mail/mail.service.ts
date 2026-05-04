@@ -131,5 +131,103 @@ export class MailService {
 
     return result.data;
   }
+
+  async sendMentionEmail(params: {
+    toEmail: string;
+    toUsername: string;
+    fromUsername: string;
+    mentionType: 'post_comment' | 'discussion_comment';
+    preview: string;
+    linkUrl: string;
+  }) {
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!from) {
+      AppError.internal(ErrorCode.MAIL_RESEND_NOT_CONFIGURED, 'RESEND_FROM_EMAIL is not configured');
+    }
+
+    const safeFrom = escapeHtml(params.fromUsername);
+    const safePreview = escapeHtml(params.preview);
+
+    const typeLabel = params.mentionType === 'post_comment' ? 'publicación' : 'discusión';
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Te mencionaron</title>
+</head>
+<body style="margin:0;padding:0;background-color:#e8ecf4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#e8ecf4;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="height:4px;background:linear-gradient(90deg,#4338ca 0%,#6366f1 50%,#818cf8 100%);"></td>
+          </tr>
+          <tr>
+            <td style="padding:36px 40px 28px;">
+              <p style="margin:0 0 8px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6366f1;">
+                Nueva mención
+              </p>
+              <h1 style="margin:0 0 16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:700;line-height:1.25;color:#0f172a;">
+                ${safeFrom} te mencionó
+              </h1>
+              <p style="margin:0 0 8px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.6;color:#475569;">
+                ${safeFrom} te mencionó en un comentario de ${typeLabel}.
+              </p>
+              <p style="margin:0 0 24px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;color:#64748b;font-style:italic;">
+                "${safePreview}"
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="border-radius:10px;background:#4f46e5;">
+                    <a href="${params.linkUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 32px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;">
+                      Ver comentario
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <hr style="margin:0 0 20px;border:none;border-top:1px solid #e2e8f0;">
+              <p style="margin:0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.55;color:#94a3b8;">
+                Recibiste este email porque tienes las notificaciones por email activadas.
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:24px 0 0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#94a3b8;">
+          Mensaje automático · no respondas a este correo
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    const text = [
+      `${params.fromUsername} te mencionó en un comentario de ${typeLabel}.`,
+      '',
+      `"${params.preview}"`,
+      '',
+      `Ver comentario: ${params.linkUrl}`,
+    ].join('\n');
+
+    const result = await this.resend.emails.send({
+      from,
+      to: params.toEmail,
+      subject: `${params.fromUsername} te mencionó`,
+      html,
+      text,
+    });
+
+    if (result.error) {
+      AppError.internal(
+        ErrorCode.MAIL_SEND_FAILED,
+        `Failed to send mention email: ${result.error.message}`,
+      );
+    }
+
+    return result.data;
+  }
 }
 

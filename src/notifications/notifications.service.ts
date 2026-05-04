@@ -3,6 +3,7 @@ import { AppError, ErrorCode } from '../common/errors';
 import { Prisma, NotificationType } from '../generated/prisma/client';
 import { FeedGateway } from '../realtime/feed.gateway';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 const previewText = (s: string, max = 200) => {
   const t = s.trim();
@@ -23,6 +24,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly feedGateway: FeedGateway,
+    private readonly mailService: MailService,
   ) {}
 
   private async withActorFollowInfo<T extends { actorId: string | null; actor?: unknown }>(
@@ -241,9 +243,11 @@ export class NotificationsService {
     if (usernames.length === 0) return;
     const users = await this.prisma.user.findMany({
       where: { username: { in: usernames } },
-      select: { id: true, username: true },
+      select: { id: true, username: true, email: true },
     });
     const name = await this.actorUsername(args.commentAuthorId);
+    const appUrl = process.env.APP_URL || 'https://devshub.dev';
+    const linkUrl = `${appUrl}/posts/${args.postId}?comment=${args.commentId}`;
     for (const u of users) {
       if (u.id === args.commentAuthorId) continue;
       if (u.id === args.postAuthorId) continue;
@@ -257,6 +261,14 @@ export class NotificationsService {
         commentId: args.commentId,
         metadata: { postTitle: args.postTitle },
       });
+      this.mailService.sendMentionEmail({
+        toEmail: u.email,
+        toUsername: u.username,
+        fromUsername: name,
+        mentionType: 'post_comment',
+        preview: previewText(args.body),
+        linkUrl,
+      }).catch(() => {});
     }
   }
 
