@@ -32,8 +32,6 @@ type TrendingBuilder = {
   followersCount: number;
   likesReceivedCount: number;
   score: number;
-  /** Si hay viewer autenticado: si el viewer sigue a este usuario. Sin token, siempre false. */
-  isFollowedByViewer: boolean;
 };
 
 @Injectable()
@@ -417,8 +415,7 @@ export class UsersService {
         description: user.description,
         followersCount,
         likesReceivedCount,
-        score,
-        isFollowedByViewer: false,
+        score
       };
     });
 
