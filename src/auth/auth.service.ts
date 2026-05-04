@@ -176,4 +176,36 @@ export class AuthService {
       },
     };
   }
+
+  async loginWithGithub(profile: { githubId: string; email?: string; username: string }) {
+    let user = await this.prisma.user.findUnique({
+      where: { githubId: profile.githubId },
+    });
+
+    if (!user && profile.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+      });
+      if (user) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { githubId: profile.githubId },
+        });
+      }
+    }
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: profile.email ?? `${profile.githubId}@github`,
+          username: profile.username,
+          password: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
+          githubId: profile.githubId,
+          isVerified: true,
+        },
+      });
+    }
+
+    return this.buildAuthResponse(user);
+  }
 }
